@@ -1,2 +1,1 @@
-# dotnet-angular-app-test-1
-A repository for a new application with Angular frontend and .NET backend
+This repository is empty. Any task executed on it should be considered a new capability and needs to be created.
