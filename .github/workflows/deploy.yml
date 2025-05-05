@@ -1,0 +1,64 @@
+name: Deploy to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '22'
+
+    - name: Install dependencies
+      run: npm install
+      working-directory: frontend
+
+    - name: Build Angular app
+      run: npm run build --prod
+      working-directory: frontend
+
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '9.0.x'
+
+    - name: Build .NET app
+      run: dotnet build
+      working-directory: backend
+
+    - name: Publish .NET app
+      run: dotnet publish -c Release -o out
+      working-directory: backend
+
+    - name: Login to Azure Container Registry
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ secrets.ACR_LOGIN_SERVER }}
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+
+    - name: Build and push Docker image
+      run: |
+        docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/myapp:latest .
+        docker push ${{ secrets.ACR_LOGIN_SERVER }}/myapp:latest
+
+    - name: Deploy to Azure Container Apps
+      uses: azure/cli@v1
+      with:
+        inlineScript: |
+          az containerapp update --name myapp --resource-group myResourceGroup --image ${{ secrets.ACR_LOGIN_SERVER }}/myapp:latest
+
+    - name: Fetch secrets from Azure Key Vault
+      uses: azure/cli@v1
+      with:
+        inlineScript: |
+          az keyvault secret show --name mySecret --vault-name myKeyVault
